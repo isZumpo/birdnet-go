@@ -2,6 +2,7 @@
 package httpcontroller
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
@@ -11,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/shurcooL/graphql"
 	"github.com/tphakala/birdnet-go/internal/datastore"
 )
 
@@ -244,4 +246,28 @@ func parseOffset(offsetStr string, defaultOffset int) int {
 		return defaultOffset
 	}
 	return offset
+}
+
+func thumbnail(scientificName string) string {
+	client := graphql.NewClient("https://app.birdweather.com/graphql", nil)
+
+	log.Printf("Fetching thumbnail for bird: %s\n", scientificName)
+
+	var query struct {
+		Species struct {
+			ThumbnailUrl graphql.String
+		} `graphql:"species(scientificName: $scientificName)"`
+	}
+
+	variables := map[string]any{
+		"scientificName": graphql.String(scientificName),
+	}
+
+	err := client.Query(context.Background(), &query, variables)
+	if err != nil {
+		log.Printf("error fetching thumbnail from birdweather: %s\n", err)
+		// Handle error.
+	}
+
+	return string(query.Species.ThumbnailUrl)
 }
