@@ -25,11 +25,13 @@ WORKDIR /root/src
 # Download TensorFlow headers
 RUN git clone --branch ${TENSORFLOW_VERSION} --depth 1 https://github.com/tensorflow/tensorflow.git
 
+WORKDIR /root/src/BirdNET-Go
 # Compile BirdNET-Go
-COPY . BirdNET-Go
-RUN --mount=type=cache,target=/go/pkg/mod \
+RUN --mount=target=.,readwrite \
+    --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
-    cd BirdNET-Go && make TARGETPLATFORM=${TARGETPLATFORM}
+    make TARGETPLATFORM=${TARGETPLATFORM} && \
+    ls -la /root/src/BirdNET-Go/bin && cp -r /root/src/BirdNET-Go/bin /root/src/bin
 
 # Create final image using a multi-platform base image
 FROM debian:bookworm-slim
@@ -56,7 +58,7 @@ WORKDIR /data
 # Make port 8080 available to the world outside this container
 EXPOSE 8080
 
-COPY --from=build /root/src/BirdNET-Go/bin /usr/bin/
+COPY --from=build /root/src/bin /usr/bin/
 
 ENTRYPOINT ["/usr/bin/birdnet-go"]
 CMD ["realtime"]
