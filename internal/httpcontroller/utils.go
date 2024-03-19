@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/shurcooL/graphql"
@@ -248,9 +249,13 @@ func parseOffset(offsetStr string, defaultOffset int) int {
 	return offset
 }
 
-func thumbnail(scientificName string) string {
-	client := graphql.NewClient("https://app.birdweather.com/graphql", nil)
+var (
+	client       = graphql.NewClient("https://app.birdweather.com/graphql", nil)
+	thumbnailMap sync.Map
+	mutexMap     sync.Map
+)
 
+func queryGraphQL(scientificName string) (string, error) {
 	log.Printf("Fetching thumbnail for bird: %s\n", scientificName)
 
 	var query struct {
@@ -259,15 +264,47 @@ func thumbnail(scientificName string) string {
 		} `graphql:"species(scientificName: $scientificName)"`
 	}
 
-	variables := map[string]any{
+	variables := map[string]interface{}{
 		"scientificName": graphql.String(scientificName),
 	}
 
 	err := client.Query(context.Background(), &query, variables)
 	if err != nil {
-		log.Printf("error fetching thumbnail from birdweather: %s\n", err)
-		// Handle error.
+		return "", err
 	}
 
-	return string(query.Species.ThumbnailUrl)
+	return string(query.Species.ThumbnailUrl), nil
+}
+
+// Function to get the thumbnail for a bird name, utilizing caching and per-item mutex
+func thumbnail(scientificName string) (string, error) {
+	// Check if thumbnail is already cached
+	if thumbnail, ok := thumbnailMap.Load(scientificName); ok {
+		log.Printf("Bird: %s, Thumbnail (cached): %s\n", scientificName, thumbnail)
+		return thumbnail.(string), nil
+	}
+
+	// Use a per-item mutex to ensure only one query is performed for each item
+	mu, _ := mutexMap.LoadOrStore(scientificName, &sync.Mutex{})
+	mutex := mu.(*sync.Mutex)
+
+	// Lock the mutex to ensure only one query is performed for this item
+	mutex.Lock()
+	defer mutex.Unlock()
+
+	// Check again if thumbnail is cached after acquiring the lock
+	if thumbnail, ok := thumbnailMap.Load(scientificName); ok {
+		log.Printf("Bird: %s, Thumbnail (cached): %s\n", scientificName, thumbnail)
+		return thumbnail.(string), nil
+	}
+
+	// Thumbnail not cached, fetch from GraphQL endpoint
+	thumbn, err := queryGraphQL(scientificName)
+	if err != nil {
+		return "", fmt.Errorf("error querying GraphQL endpoint: %v", err)
+	}
+
+	thumbnailMap.Store(scientificName, thumbn)
+	log.Printf("Bird: %s, Thumbnail (fetched): %s\n", scientificName, thumbn)
+	return thumbn, nil
 }
