@@ -77,6 +77,7 @@ WORKDIR /data
 # Make port 8080 available to the world outside this container
 EXPOSE 8080
 
+COPY --from=build /root/src/BirdNET-Go/internal/birdnet /birdnet_models/
 COPY --from=build /root/src/BirdNET-Go/bin /usr/bin/
 
 ENTRYPOINT ["/usr/bin/birdnet-go"]

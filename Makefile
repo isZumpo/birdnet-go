@@ -73,7 +73,7 @@ $(LABELS_ZIP): $(LABELS_FILES)
 linux_amd64: TFLITE_LIB_DIR="/usr/lib"
 linux_amd64: TFLITE_LIB_ARCH=tflite_c_$(TFLITE_VERSION)_linux_amd64.tar.gz
 linux_amd64: $(LABELS_ZIP) check-tools check-tensorflow download-tflite 
-	GOOS=linux GOARCH=amd64 $(CGO_FLAGS) go build $(LDFLAGS) -o $(BINARY_DIR)/$(BINARY_NAME)
+	GOOS=linux GOARCH=amd64 $(CGO_FLAGS) go build $(LDFLAGS) -o $(BINARY_DIR)/$(BINARY_NAME) -tags=docker
 
 # Build for Linux arm64, with cross-compilation setup if on amd64
 linux_arm64: TFLITE_LIB_DIR="/usr/lib"
