@@ -58,9 +58,22 @@ ARG TFLITE_LIB_DIR
 COPY --from=build ${TFLITE_LIB_DIR}/libtensorflowlite_c.so ${TFLITE_LIB_DIR}
 RUN ldconfig
 
+# Create dev-user for building and devcontainer usage
+RUN groupadd --gid 10002 birdnet-user; \
+    useradd --uid 10002 --gid birdnet-user --shell /bin/bash --create-home birdnet-user; \
+    usermod -aG audio birdnet-user
+
+# Create config and data directories
+RUN mkdir -p  /config /data; \
+    chown birdnet-user /config /data
+
+# Change to final user
+USER birdnet-user
+
 # Add symlink to /config directory where configs can be stored
 VOLUME /config
-RUN mkdir -p /root/.config && ln -s /config /root/.config/birdnet-go
+RUN mkdir -p /home/birdnet-user/.config/birdnet-go; \
+    ln -s /config /home/birdnet-user/.config/birdnet-go
 
 VOLUME /data
 WORKDIR /data
